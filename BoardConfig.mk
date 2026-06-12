@@ -36,7 +36,7 @@ BOARD_MKBOOTIMG_ARGS := \
     --dtb $(DEVICE_PATH)/$(PRODUCT_DEVICE)/prebuilt/dtb.img \
     --ramdisk_offset 0x01000000 \
     --dtb_offset 0 \
-    --os_version 14.0.0 \
+    --os_version 16.0.0 \
     --tags_offset 0x00000100 \
     --header_version 2
 
@@ -81,7 +81,7 @@ RECOVERY_SDCARD_ON_DATA := true
 TARGET_USES_MKE2FS := true
 
 # TWRP specific build flags
-TW_DEVICE_VERSION := Android-Artisan_v2-
+TW_DEVICE_VERSION := ArtisanROM_v3.5.0
 TW_THEME := portrait_hdpi
 TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel/brightness"
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/class/thermal/thermal_zone0/temp"
