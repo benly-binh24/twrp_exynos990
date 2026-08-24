@@ -17,10 +17,7 @@ jobs:
       run: ./configure
 
     - name: Install dependencies
-      run:       
-      . build/envsetup.sh
-      lunch twrp_x1s-eng
-      mka recoveryimage
+      run:  make
 
     - name: Run check
       run: make check
