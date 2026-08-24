@@ -1,4 +1,4 @@
-name: Build TWRP Exynos 990
+name: Build TWRP Exynos 990 (c2s)
 
 on:
   workflow_dispatch:
@@ -36,46 +36,46 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Sync Source & Build TWRP
+      - name: Sync Source & Build TWRP for c2s
         run: |
           mkdir -p ~/workspace
           cd ~/workspace
 
-          # 1. Sync mã nguồn TWRP
+          # 1. Sync mã nguồn TWRP Android 11
           repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11 --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-          # 2. Xóa sạch các folder trùng lặp trong device/samsung do roomservice tạo ra
+          # 2. Xóa sạch dữ liệu cũ trong device/samsung để tránh lỗi trùng lặp (ambiguous)
           rm -rf device/samsung/*
 
-          # 3. Copy Device Tree của bạn vào device/samsung/c1s
-          mkdir -p device/samsung/c1s
-          cp -r $GITHUB_WORKSPACE/* device/samsung/c1s/
+          # 3. Đưa mã nguồn Device Tree c2s vào đúng cấu trúc đường dẫn
+          mkdir -p device/samsung/exynos990/c2s
+          cp -r $GITHUB_WORKSPACE/* device/samsung/exynos990/c2s/
 
-          # 4. Tìm đúng file .mk để lunch
-          cd device/samsung/c1s
+          # 4. Tìm đúng file cấu hình .mk của c2s
+          cd device/samsung/exynos990/c2s
           PRODUCT_MK=$(ls twrp_*.mk omni_*.mk 2>/dev/null | head -n 1)
           
           if [ -z "$PRODUCT_MK" ]; then
-            echo "LỖI: Không tìm thấy file twrp_*.mk hoặc omni_*.mk!"
+            echo "LỖI: Không tìm thấy file twrp_c2s.mk hoặc omni_c2s.mk trong repo!"
             exit 1
           fi
 
           PRODUCT_NAME=$(echo "$PRODUCT_MK" | sed 's/\.mk//')
           echo "=====> Target Build chính xác: ${PRODUCT_NAME} <====="
 
-          # 5. Khởi chạy quá trình Build
+          # 5. Khởi chạy biên dịch
           cd ~/workspace
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
           lunch ${PRODUCT_NAME}-eng
           mka recoveryimage -j$(nproc)
-          
+
       - name: Upload Recovery Image to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TWRP_Exynos990_Recovery
+          name: TWRP_c2s_Recovery
           path: |
+            ~/workspace/out/target/product/c2s/recovery.img
             ~/workspace/out/target/product/*/recovery.img
-            ~/workspace/out/target/product/*/*.img
           if-no-files-found: error
