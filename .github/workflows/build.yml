@@ -1,76 +1,40 @@
-name: Build TWRP for Exynos 990
+name: Build TWRP Exynos 990
 
 on:
-  workflow_dispatch: # Cho phép chạy thủ công từ tab Actions trên GitHub
-  push:
-    branches:
-      - main
-      - android-11.0 # Hoặc nhánh mã nguồn bạn đang sử dụng
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Maximize Build Space
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 1024
-          swap-size-mb: 4096
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-
-      - name: Install Dependencies
+      - name: Clean and Setup Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            git repo bc bison build-essential ccache curl flex g++-multilib \
-            gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev \
-            lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev \
-            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush \
-            rsync schedtool squashfs-tools xsltproc yasm zip zlib1g-dev
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig
 
-      - name: Setup Git Configuration
-        run: |
-          git config --global user.name "Benly Binh"
-          git config --global user.email "benlybinh24@example.com"
-
-      - name: Initialize Repo and Sync
+      - name: Install Repo Tool
         run: |
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          export PATH=~/bin:$PATH
+          chmod a+rx ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
 
+      - name: Sync TWRP Source & Build
+        run: |
           mkdir workspace
           cd workspace
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-11.0 --depth=1
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
           
-          # Khởi tạo repo TWRP (Ví dụ nhánh android-11.0 hoặc android-12.1)
-          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-11
-          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j8
-
-      - name: Setup Device Tree and Build
-        run: |
-          cd workspace
+          # Đưa device tree vào workspace
+          git clone ${{ github.server_url }}/${{ github.repository }} device/samsung/exynos990-common
           
-          # Đưa device tree của bạn vào đúng đường dẫn (Ví dụ: device/samsung/exynos990)
-          mkdir -p device/samsung
-          # Sao chép mã nguồn hiện tại của bạn vào thư mục device tree trong workspace
-          cp -r $GITHUB_WORKSPACE/* device/samsung/exynos990/ || true
-
-          # Bắt đầu quá trình biên dịch
+          # Chạy lệnh build chuẩn của Android
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
-          lunch omni_exynos990-eng # Thay thế bằng tên BoardConfig hoặc lunch combo thực tế của bạn
-          mka recoveryimage -j8
-
-      - name: Upload Recovery Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: twrp-exynos990-recovery
-          path: workspace/out/target/product/exynos990/*.img
+          lunch omni_exynos990-eng || lunch twrp_exynos990-eng
+          mka recoveryimage -j$(nproc)
