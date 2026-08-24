@@ -32,11 +32,6 @@ jobs:
 
       - name: Sync TWRP Source & Build
         run: |
-          # Đưa device tree vào workspace
-          git clone ${{ github.server_url }}/${{ github.repository }} device/samsung/exynos990-common
-          
-          # Chạy lệnh build chuẩn của Android
-          export ALLOW_MISSING_DEPENDENCIES=true
-          source build/envsetup.sh
-          lunch omni_exynos990-eng || lunch twrp_exynos990-eng
-          mka recoveryimage -j$(nproc)
+           cd <source-dir>; 
+           export ALLOW_MISSING_DEPENDENCIES=true; 
+           . build/envsetup.sh; lunch omni_<device>-eng; mka recoveryimage
