@@ -16,20 +16,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig
 
-      - name: Install Repo Tool
+      - name: Initialize Repo and Sync
         run: |
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+rx ~/bin/repo
-          echo "$HOME/bin" >> $GITHUB_PATH
+          export PATH=~/bin:$PATH
+
+          mkdir workspace
+          cd workspace
+          
+          # Sửa twrp-11.0 thành twrp-11
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-11 --depth=1
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
       - name: Sync TWRP Source & Build
         run: |
-          mkdir workspace
-          cd workspace
-          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-12.1
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-          
           # Đưa device tree vào workspace
           git clone ${{ github.server_url }}/${{ github.repository }} device/samsung/exynos990-common
           
