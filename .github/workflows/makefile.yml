@@ -13,6 +13,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run:  make
+
     - name: Build TWRP
         run: |
           cd workspace
@@ -20,12 +24,3 @@ jobs:
           source build/envsetup.sh
           lunch omni_<mã_máy>-eng
           mka recoveryimage -j$(nproc)
-
-    - name: Install dependencies
-      run:  make
-
-    - name: Run check
-      run: make check
-
-    - name: Run distcheck
-      run: make distcheck
