@@ -13,12 +13,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
     - name: configure
       run: ./configure
 
     - name: Install dependencies
-      run: make
+      run:       
+      . build/envsetup.sh
+      lunch twrp_x1s-eng
+      mka recoveryimage
 
     - name: Run check
       run: make check
