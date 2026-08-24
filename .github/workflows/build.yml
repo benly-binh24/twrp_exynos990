@@ -45,26 +45,15 @@ jobs:
           repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11 --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-          # 2. Copy Device Tree vào thư mục
-          mkdir -p device/samsung/exynos990-common
-          cp -r $GITHUB_WORKSPACE/* device/samsung/exynos990-common/
+          # 2. Dọn dẹp thư mục c1s cũ nếu roomservice đã tự tải về
+          rm -rf device/samsung/c2s
 
-          # 3. Tự động tìm tên Product trong file omni_*.mk hoặc twrp_*.mk
-          cd device/samsung/exynos990-common
-          MK_FILE=$(ls omni_*.mk twrp_*.mk 2>/dev/null | head -n 1)
-          
-          if [ -z "$MK_FILE" ]; then
-            echo "LỖI: Không tìm thấy file omni_*.mk hoặc twrp_*.mk trong mã nguồn của bạn!"
-            exit 1
-          fi
+          # 3. Copy mã nguồn của bạn vào đúng đường dẫn device/samsung/c1s
+          mkdir -p device/samsung/c2s
+          cp -r $GITHUB_WORKSPACE/* device/samsung/c2s/
 
-          # Tách lấy tên lunch target (VD: omni_c2s.mk -> omni_c2s-eng)
-          TARGET=$(echo "$MK_FILE" | sed 's/\.mk//')-eng
-          echo "Tìm thấy Target Build: $TARGET"
-
-          # 4. Chạy lệnh Build
-          cd ~/workspace
+          # 4. Khởi tạo môi trường và biên dịch cho c2s
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
-          lunch $TARGET
+          lunch twrp_c2s-eng || lunch omni_c2s-eng
           mka recoveryimage -j$(nproc)
