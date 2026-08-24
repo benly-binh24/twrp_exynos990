@@ -38,29 +38,33 @@ jobs:
 
       - name: Sync Source & Build TWRP
         run: |
-          # Tạo workspace ở thư mục HOME để tránh lỗi copy đè
           mkdir -p ~/workspace
           cd ~/workspace
 
-          # Khởi tạo repo AOSP manifest chuẩn cho Android 11
+          # 1. Sync mã nguồn TWRP
           repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11 --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-          # Copy device tree vào đúng vị trí
+          # 2. Copy Device Tree vào thư mục
           mkdir -p device/samsung/exynos990-common
           cp -r $GITHUB_WORKSPACE/* device/samsung/exynos990-common/
 
-          # Khởi tạo môi trường và biên dịch
+          # 3. Tự động tìm tên Product trong file omni_*.mk hoặc twrp_*.mk
+          cd device/samsung/exynos990-common
+          MK_FILE=$(ls omni_*.mk twrp_*.mk 2>/dev/null | head -n 1)
+          
+          if [ -z "$MK_FILE" ]; then
+            echo "LỖI: Không tìm thấy file omni_*.mk hoặc twrp_*.mk trong mã nguồn của bạn!"
+            exit 1
+          fi
+
+          # Tách lấy tên lunch target (VD: omni_c2s.mk -> omni_c2s-eng)
+          TARGET=$(echo "$MK_FILE" | sed 's/\.mk//')-eng
+          echo "Tìm thấy Target Build: $TARGET"
+
+          # 4. Chạy lệnh Build
+          cd ~/workspace
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
-          lunch twrp_exynos990-eng || lunch omni_exynos990-eng
+          lunch $TARGET
           mka recoveryimage -j$(nproc)
-
-      - name: Upload Recovery Image to GitHub Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: TWRP_Exynos990_Recovery
-          path: |
-            ~/workspace/out/target/product/*/recovery.img
-            ~/workspace/out/target/product/*/*.img
-          if-no-files-found: error
