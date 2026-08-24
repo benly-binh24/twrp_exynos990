@@ -57,3 +57,12 @@ jobs:
           source build/envsetup.sh
           lunch twrp_c2s-eng || lunch omni_c2s-eng
           mka recoveryimage -j$(nproc)
+          
+      - name: Upload Recovery Image to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TWRP_Exynos990_Recovery
+          path: |
+            ~/workspace/out/target/product/*/recovery.img
+            ~/workspace/out/target/product/*/*.img
+          if-no-files-found: error
