@@ -42,34 +42,49 @@ jobs:
           cd ~/workspace
 
           # 1. Sync mã nguồn TWRP Android 11
-          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1 --depth=1
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11 --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-          # 2. Xóa sạch dữ liệu cũ trong device/samsung để tránh lỗi trùng lặp (ambiguous)
+          # 2. Xóa sạch dữ liệu cũ trong device/samsung
           rm -rf device/samsung/*
 
-          # 3. Đưa mã nguồn Device Tree c2s vào đúng cấu trúc đường dẫn
+          # 3. Copy mã nguồn vào đúng đường dẫn c2s
           mkdir -p device/samsung/exynos990/c2s
           cp -r $GITHUB_WORKSPACE/* device/samsung/exynos990/c2s/
 
-          # 4. Tìm đúng file cấu hình .mk của c2s
+          # 4. Tự động chuyển toàn bộ c1s sang c2s & sửa AndroidProducts.mk
           cd device/samsung/exynos990/c2s
-          PRODUCT_MK=$(ls twrp_*.mk omni_*.mk 2>/dev/null | head -n 1)
           
-          if [ -z "$PRODUCT_MK" ]; then
-            echo "LỖI: Không tìm thấy file twrp_c2s.mk hoặc omni_c2s.mk trong repo!"
-            exit 1
+          # Đổi tên file cấu hình nếu còn là c1s
+          if [ -f "twrp_c1s.mk" ]; then
+            mv twrp_c1s.mk twrp_c2s.mk
           fi
 
-          PRODUCT_NAME=$(echo "$PRODUCT_MK" | sed 's/\.mk//')
-          echo "=====> Target Build chính xác: ${PRODUCT_NAME} <====="
+          # Thay thế nội dung c1s -> c2s trong tất cả các file .mk
+          sed -i 's/c1s/c2s/g' twrp_c2s.mk || true
+          sed -i 's/exynos990\/c1s/exynos990\/c2s/g' BoardConfig.mk || true
+          sed -i 's/exynos990\/c1s/exynos990\/c2s/g' device.mk || true
+
+          # Ghi đè file AndroidProducts.mk để đảm bảo khai báo đúng sản phẩm
+          cat <<EOF > AndroidProducts.mk
+          PRODUCT_MAKEFILES := \$(LOCAL_DIR)/twrp_c2s.mk
+
+          COMMON_LUNCH_CHOICES := \
+              twrp_c2s-userdebug \
+              twrp_c2s-eng
+          EOF
+
+          echo "=====> Nội dung AndroidProducts.mk đã cập nhật <====="
 
           # 5. Khởi chạy biên dịch
           cd ~/workspace
           export ALLOW_MISSING_DEPENDENCIES=true
+          export ROOMSERVICE_BRANCHES="twrp-11"
           source build/envsetup.sh
-          lunch twrp_c2s-eng
-          mka recoveryimage
+          
+          # Thử lunch với userdebug trước, nếu không được sẽ fallback sang eng
+          lunch twrp_c2s-userdebug || lunch twrp_c2s-eng
+          mka recoveryimage -j$(nproc)
 
       - name: Upload Recovery Image to GitHub Artifacts
         uses: actions/upload-artifact@v4
