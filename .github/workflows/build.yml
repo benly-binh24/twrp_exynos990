@@ -45,17 +45,36 @@ jobs:
           repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-11 --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-          # 2. Dọn dẹp thư mục c1s cũ nếu roomservice đã tự tải về
-          rm -rf device/samsung/c2s
+          # 2. Xác định tên folder thiết bị & copy mã nguồn vào device/samsung/
+          # Nếu repo của bạn chứa file twrp_c1s.mk thì folder sẽ là c1s
+          TARGET_DIR="c1s"
+          if [ -f "$GITHUB_WORKSPACE/twrp_c2s.mk" ] || [ -f "$GITHUB_WORKSPACE/omni_c2s.mk" ]; then
+            TARGET_DIR="c2s"
+          elif [ -f "$GITHUB_WORKSPACE/twrp_r8s.mk" ] || [ -f "$GITHUB_WORKSPACE/omni_r8s.mk" ]; then
+            TARGET_DIR="r8s"
+          fi
 
-          # 3. Copy mã nguồn của bạn vào đúng đường dẫn device/samsung/c1s
-          mkdir -p device/samsung/c2s
-          cp -r $GITHUB_WORKSPACE/* device/samsung/c2s/
+          rm -rf device/samsung/$TARGET_DIR
+          mkdir -p device/samsung/$TARGET_DIR
+          cp -r $GITHUB_WORKSPACE/* device/samsung/$TARGET_DIR/
 
-          # 4. Khởi tạo môi trường và biên dịch cho c2s
+          # 3. Tự động quét file .mk để lấy đúng tên product target
+          cd device/samsung/$TARGET_DIR
+          PRODUCT_MK=$(ls twrp_*.mk omni_*.mk 2>/dev/null | head -n 1)
+          
+          if [ -z "$PRODUCT_MK" ]; then
+            echo "LỖI: Không tìm thấy file twrp_*.mk hoặc omni_*.mk trong Device Tree!"
+            exit 1
+          fi
+
+          PRODUCT_NAME=$(echo "$PRODUCT_MK" | sed 's/\.mk//')
+          echo "=====> Đã tìm thấy Product Target: ${PRODUCT_NAME} <====="
+
+          # 4. Thực hiện Build
+          cd ~/workspace
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
-          lunch twrp_c2s-eng || lunch omni_c2s-eng
+          lunch ${PRODUCT_NAME}-eng
           mka recoveryimage -j$(nproc)
           
       - name: Upload Recovery Image to GitHub Artifacts
